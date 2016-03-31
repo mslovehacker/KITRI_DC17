@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Board">
+
+	<select id="BoardTextSelectAll" parameterType="com.kitri.fpgw.model.BoardTextMainDto" resultType="com.kitri.fpgw.model.BoardTextMainDto">
+			SELECT  BM_SEQ INTSEQ,
+			        CASE  WHEN RI.CNT > 0 THEN BM_TITLE || '[' || RI.CNT || ']'
+			              ELSE BM_TITLE
+			        END STRTITLE,
+			        BM_GROUP STRGROUP_CD, BM_KIND STRKIND_CD,
+			        BM_GET_USER STRGET_USER_CD, UM.UM_NAME STRGET_USER_NM,
+			        NVL(BV.CNT, 0) INTCOMMENTCOUNT
+			FROM    BOARD_MAIN BM
+			        LEFT OUTER JOIN
+			                        (
+			                          SELECT BM_PSEQ, COUNT(BM_SEQ) CNT
+			                          FROM BOARD_MAIN
+			                          WHERE (BM_PSEQ > 0)
+			                          GROUP BY BM_PSEQ
+			                        ) RI ON (BM.BM_SEQ = RI.BM_PSEQ)
+			        LEFT OUTER JOIN
+			                        (
+			                          SELECT BV_BM_SEQ, COUNT(BV_SEQ) CNT
+			                          FROM BOARD_VIEW
+			                          GROUP BY BV_BM_SEQ
+			                        ) BV ON (BM.BM_SEQ = BV.BV_BM_SEQ)
+			        LEFT OUTER JOIN USER_MAIN UM ON (BM.BM_GET_USER = UM.UM_CODE)
+			WHERE   (BM.BM_PSEQ = 0)
+			AND     (BM.BM_GROUP = #{strGroup_Cd})
+			AND     (BM.BM_KIND = #{strKind_Cd})
+			ORDER BY BM_SEQ DESC
+	</select>
+
+	<select id="BoardTextSelect" parameterType="integer" resultType="com.kitri.fpgw.model.BoardTextMainDto">
+		SELECT  BM_SEQ INTSEQ,
+		        BM_GROUP STRGROUP_CD,       BM_KIND STRKIND_CD,
+		        BM_TITLE STRTITLE,          BM_DETAIL_COMMENT STRDETAIL_COMMENT,
+		        BM_GET_USER STRGET_USER_CD, GET_USER.UM_NAME STRGET_USER_NM,
+		        BM_GET_DATE DATGET_DATE
+		FROM    BOARD_MAIN BM
+		        LEFT OUTER JOIN USER_MAIN GET_USER ON (BM_GET_USER = UM_CODE)
+		WHERE   (BM_SEQ = #{intSeq})	
+	</select>
+
+	<insert id="BoardTextInsert" parameterType="com.kitri.fpgw.model.BoardTextMainDto">
+		INSERT INTO BOARD_MAIN
+		  (
+		      BM_SEQ,
+		      BM_PSEQ,
+		      BM_GROUP_BCODE,   BM_GROUP,
+		      BM_KIND_BCODE,    BM_KIND,
+		      BM_TITLE,         BM_DETAIL_COMMENT,
+		      BM_GET_USER,      BM_GET_DATE,
+		      BM_EDIT_USER,     BM_EDIT_DATE
+		  )
+		SELECT
+		    NVL(MAX(BM_SEQ), 0) + 1 BM_SEQ,
+		    0,
+		    '400', 				#{strGroup_Cd}, 
+		    '401', 				#{strKind_Cd},
+		    #{strTitle}, 		#{strDetail_Comment},
+		    #{strGet_User_Cd}, 	SYSDATE,
+		    #{strEdit_User_Cd}, SYSDATE
+		FROM BOARD_MAIN	
+	</insert>
+
+	<update id="BoardTextModify" parameterType="com.kitri.fpgw.model.BoardTextMainDto">
+		UPDATE BOARD_MAIN
+		SET
+		    BM_TITLE          = #{strTitle},
+		    BM_DETAIL_COMMENT = #{strDetail_Comment},
+		    BM_EDIT_USER      = #{strEdit_User_Cd},
+		    BM_EDIT_DATE      = SYSDATE
+		WHERE (BM_SEQ = #{intSeq})	
+	</update>
+	
+	<delete id="BoardTextDelete" parameterType="integer">
+		DELETE FROM BOARD_MAIN
+		WHERE (BM_SEQ = #{intSeq})
+	</delete>
+	
+	<insert id="BoardTextViewCount" parameterType="com.kitri.fpgw.model.BoardTextViewDto">
+		DECLARE
+		  I_CNT NUMBER;
+		BEGIN
+		
+		  SELECT 	COUNT(BV_SEQ) CNT
+		  INTO 		I_CNT
+		  FROM 		BOARD_VIEW
+		  WHERE 	(BV_BM_SEQ = #{intBmSeq})
+		  AND 		(BV_GET_USER = #{strGet_User_Cd})
+		  ;
+		  
+		  IF(I_CNT = 0)
+		  THEN
+		      INSERT INTO BOARD_VIEW
+		      SELECT 	#{intBmSeq},
+		              	NVL(MAX(BV_SEQ), 0) + 1,
+		              	#{strGet_User_Cd}, SYSDATE
+		      FROM 		BOARD_VIEW
+		      WHERE 	(BV_BM_SEQ = #{intBmSeq});
+		  END IF;
+		    
+		END;	
+	</insert>
+
+	<select id="BoardTextCommentList" parameterType="integer" resultType="com.kitri.fpgw.model.BoardTextCommentDto">
+		SELECT  BM_SEQ INTSEQ,                BM_PSEQ INTPSEQ,
+		        BM_DETAIL_COMMENT STRDETAIL_COMMENT,
+		        BM_GET_USER STRGET_USER_CD,   UM.UM_NAME STRGET_USER_NM,
+		        BM_GET_DATE DATGET_DATE
+		FROM    BOARD_MAIN BM
+		        LEFT OUTER JOIN USER_MAIN UM ON (BM.BM_GET_USER = UM.UM_CODE)
+		WHERE   (BM_PSEQ = #{intPSeq})
+		ORDER BY BM_SEQ DESC	
+	</select>
+	
+	<insert id="BoardTextCommentInsert" parameterType="com.kitri.fpgw.model.BoardTextCommentDto">
+		INSERT INTO BOARD_MAIN
+		  (
+		      BM_SEQ,
+		      BM_PSEQ,
+		      BM_GROUP_BCODE,   BM_GROUP,
+		      BM_KIND_BCODE,    BM_KIND,
+		      BM_TITLE,         BM_DETAIL_COMMENT,
+		      BM_GET_USER,      BM_GET_DATE,
+		      BM_EDIT_USER,     BM_EDIT_DATE
+		  )
+		SELECT
+		    NVL(MAX(BM_SEQ), 0) + 1 BM_SEQ,
+		    #{intPSeq},
+		    '400', 				#{strGroup_Cd}, 
+		    '401', 				#{strKind_Cd},
+		    '', 				#{strDetail_Comment},
+		    #{strGet_User_Cd}, 	SYSDATE,
+		    #{strEdit_User_Cd}, SYSDATE
+		FROM BOARD_MAIN		
+	</insert>
+
+	<delete id="BoardTextCommentDelete" parameterType="integer">
+		DELETE FROM BOARD_MAIN
+		WHERE (BM_SEQ = #{intSeq})
+	</delete>
+
+
+
+
+
+	
+</mapper>
